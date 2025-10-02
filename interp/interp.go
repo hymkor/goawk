@@ -46,6 +46,10 @@ var (
 	defaultShellCommand = getDefaultShellCommand()
 )
 
+func DisableCRLFTranslation() {
+	crlfNewline = false
+}
+
 // Error (actually *Error) is returned by Exec and Eval functions on
 // interpreter error, for example FS being set to an invalid regex.
 type Error struct {
