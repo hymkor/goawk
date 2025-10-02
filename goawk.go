@@ -197,6 +197,8 @@ argsLoop:
 		case "-version", "--version":
 			fmt.Println(version)
 			os.Exit(0)
+		case "-no-crlf":
+			interp.DisableCRLFTranslation()
 		default:
 			switch {
 			case strings.HasPrefix(arg, "-E"):
