@@ -63,6 +63,7 @@ Additional GoAWK features:
   -h, --help        show this help message
   -i mode           parse input into fields using CSV format (ignore FS and RS)
                     'csv|tsv [separator=<char>] [comment=<char>] [header]'
+  -no-crlf          disable automatic CRLF newline conversion on Windows
   -o mode           use CSV output for print with args (ignore OFS and ORS)
                     'csv|tsv [separator=<char>]'
   -version          show GoAWK version and exit
