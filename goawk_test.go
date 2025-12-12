@@ -490,9 +490,11 @@ func runAWKs(t *testing.T, testArgs []string, testStdin, testOutput, testError s
 		t.Helper()
 		cmd := exec.Command(awkExe, testArgs...)
 		if runtime.GOOS == "darwin" {
-			cmd.Env = []string{"LC_ALL=en_US.UTF-8"}
+			cmd.Env = append([]string{}, os.Environ()...)
+			cmd.Env = append(cmd.Env, "LC_ALL=en_US.UTF-8")
 		} else if runtime.GOOS != "windows" {
-			cmd.Env = []string{"LC_ALL=C.UTF-8"}
+			cmd.Env = append([]string{}, os.Environ()...)
+			cmd.Env = append(cmd.Env, "LC_ALL=C.UTF-8")
 		}
 		if testStdin != "" {
 			cmd.Stdin = strings.NewReader(testStdin)
@@ -1036,4 +1038,53 @@ func convertPathsToFilenames(t *testing.T, str string) string {
 		lines[i] = filepath.Base(path) + ":" + data
 	}
 	return strings.Join(lines, "\n")
+}
+
+func TestSearchEnvAwkPath(t *testing.T) {
+	top := t.TempDir()
+
+	testcases := []*struct {
+		path     string
+		contents string
+		fullpath string
+	}{
+		{path: "a/x.awk", contents: `BEGIN{ print "X-OK" }`},
+		{path: "b/y.awk", contents: `BEGIN{ print "Y-OK" }`},
+		{path: "c/z.awk", contents: `BEGIN{ print "Z-OK" }`},
+	}
+
+	var env strings.Builder
+	for i, tc := range testcases {
+		scriptPath := filepath.Join(top, tc.path)
+		dir := filepath.Dir(scriptPath)
+		if err := os.Mkdir(dir, 0777); err != nil {
+			t.Fatal(err.Error())
+		}
+		if err := os.WriteFile(scriptPath, []byte(tc.contents), 0666); err != nil {
+			t.Fatal(err.Error())
+		}
+		if i > 0 {
+			env.WriteByte(os.PathListSeparator)
+		}
+		env.WriteString(dir)
+
+		tc.fullpath = scriptPath
+	}
+	runAWKs(t, []string{"-f", "x.awk"}, "", "", "file \"x.awk\" not found")
+	runAWKs(t, []string{"-f", "y.awk"}, "", "", "file \"y.awk\" not found")
+	runAWKs(t, []string{"-f", "z.awk"}, "", "", "file \"z.awk\" not found")
+
+	runAWKs(t, []string{"-f", testcases[0].fullpath}, "", "X-OK\n", "")
+	runAWKs(t, []string{"-f", testcases[1].fullpath}, "", "Y-OK\n", "")
+	runAWKs(t, []string{"-f", testcases[2].fullpath}, "", "Z-OK\n", "")
+
+	t.Setenv("AWKPATH", env.String())
+
+	runAWKs(t, []string{"-f", "x.awk"}, "", "X-OK\n", "")
+	runAWKs(t, []string{"-f", "y.awk"}, "", "Y-OK\n", "")
+	runAWKs(t, []string{"-f", "z.awk"}, "", "Z-OK\n", "")
+
+	runAWKs(t, []string{"-f", testcases[0].fullpath}, "", "X-OK\n", "")
+	runAWKs(t, []string{"-f", testcases[1].fullpath}, "", "Y-OK\n", "")
+	runAWKs(t, []string{"-f", testcases[2].fullpath}, "", "Z-OK\n", "")
 }

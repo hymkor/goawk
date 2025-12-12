@@ -255,6 +255,7 @@ argsLoop:
 					errorExit(err)
 				}
 			} else {
+				progFile = searchEnvAwkPath(progFile)
 				f, err := os.Open(progFile)
 				if err != nil {
 					errorExit(err)
@@ -486,4 +487,32 @@ func expandWildcards(args []string) []string {
 		}
 	}
 	return result
+}
+
+func searchEnvAwkPath(progFile string) string {
+	if strings.IndexByte(progFile, '/') >= 0 {
+		return progFile
+	}
+	if os.PathSeparator != '/' && strings.IndexByte(progFile, os.PathSeparator) >= 0 {
+		return progFile
+	}
+	env, ok := os.LookupEnv("AWKPATH")
+	if !ok {
+		return progFile
+	}
+	for {
+		var dir string
+		var ok bool
+		dir, env, ok = strings.Cut(env, string(os.PathListSeparator))
+		if dir != "" {
+			fullpath := filepath.Join(dir, progFile)
+			stat, err := os.Stat(fullpath)
+			if err == nil && stat.Mode().IsRegular() {
+				return fullpath
+			}
+		}
+		if !ok {
+			return progFile
+		}
+	}
 }
